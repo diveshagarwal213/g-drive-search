@@ -63,6 +63,16 @@ function initUI() {
   });
   document.getElementById('select-sort').addEventListener('change', refreshSearchResults);
 
+  // Date Range Pickers
+  document.getElementById('search-start-date').addEventListener('change', refreshSearchResults);
+  document.getElementById('search-end-date').addEventListener('change', refreshSearchResults);
+  document.getElementById('btn-clear-dates').addEventListener('click', (e) => {
+    e.preventDefault();
+    document.getElementById('search-start-date').value = '';
+    document.getElementById('search-end-date').value = '';
+    refreshSearchResults();
+  });
+
   // Type Tag Filters
   const tagBtns = document.querySelectorAll('.tag-btn');
   tagBtns.forEach(btn => {
@@ -419,6 +429,8 @@ function refreshSearchResults() {
   const foldersOnly = document.getElementById('chk-folders').checked;
   const filesOnly = document.getElementById('chk-files').checked;
   const sortVal = document.getElementById('select-sort').value;
+  const startDate = document.getElementById('search-start-date').value;
+  const endDate = document.getElementById('search-end-date').value;
   
   // Set case sensitivity for LIKE
   db.run(`PRAGMA case_sensitive_like = ${caseSensitive ? 'ON' : 'OFF'};`);
@@ -459,6 +471,16 @@ function refreshSearchResults() {
     } else if (currentActiveTypeFilter === 'zip') {
       query += " AND extension IN ('zip', 'tar', 'gz', 'rar', '7z')";
     }
+  }
+  
+  // Date Range Filters
+  if (startDate) {
+    query += " AND modified_date >= :startDate";
+    bindings[':startDate'] = startDate + 'T00:00:00.000Z';
+  }
+  if (endDate) {
+    query += " AND modified_date <= :endDate";
+    bindings[':endDate'] = endDate + 'T23:59:59.999Z';
   }
   
   // Search query substring

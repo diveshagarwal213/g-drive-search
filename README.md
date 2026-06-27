@@ -12,6 +12,7 @@ This project solves the limitation of default Google Drive search, which fails o
 - 💾 **In-Browser SQLite**: Executes database queries using `sql.js` (SQLite compiled to WebAssembly) entirely client-side.
 - 🔄 **Persistent Storage**: Serializes and caches the SQLite database file in browser **IndexedDB** so index states persist across page reloads.
 - 🔍 **Substring Search**: Performs parameter-bound search matches using SQL `LIKE` clauses (e.g. `WHERE name LIKE '%23456789%'`).
+- 📅 **Date Range Filter**: Limits search results dynamically based on file modified start and end date boundaries.
 - 💻 **SQL Query Console**: An interactive editor allowing you to write, test, and render custom SQLite read/write queries.
 - ⚡ **Apps Script Synchronization**: Bypasses complex user OAuth setups by running a lightweight Apps Script proxy web app to fetch folder lists.
 - 🎨 **Futuristic Dashboard**: A responsive, modern dark UI styled with CSS variables and glassmorphism.
