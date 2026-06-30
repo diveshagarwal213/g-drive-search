@@ -17,6 +17,7 @@ from .serializers import (
     SettingsSerializer,
     SyncRequestSerializer,
 )
+from .service import perform_gdrive_sync
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -178,68 +179,14 @@ class SyncView(APIView):
         if not body.is_valid():
             return Response(body.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        script_url   = body.validated_data['script_url']
-        folder_input = body.validated_data['folder_url']
-        folder_id    = _extract_folder_id(folder_input)
+        script_url = body.validated_data['script_url']
+        folder_url = body.validated_data['folder_url']
 
-        # --- Fetch from Apps Script (server-side, no CORS) ---
-        try:
-            resp = http_requests.get(
-                script_url,
-                params={'id': folder_id},
-                timeout=60,
-            )
-            resp.raise_for_status()
-            result = resp.json()
-        except http_requests.RequestException as exc:
-            return Response(
-                {'success': False, 'error': str(exc)},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
+        res = perform_gdrive_sync(script_url, folder_url)
+        if not res.get('success'):
+            return Response(res, status=status.HTTP_400_BAD_REQUEST)
 
-        if not result.get('success'):
-            return Response(
-                {'success': False, 'error': result.get('error', 'Unknown Apps Script error')},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # --- Bulk-replace records ---
-        files_data = result.get('files', [])
-        DriveFile.objects.all().delete()
-
-        objs = []
-        for f in files_data:
-            name = f.get('name', '')
-            dot  = name.rfind('.')
-            ext  = name[dot + 1:].lower() if dot != -1 else ''
-            if f.get('mimeType') == FOLDER_MIME:
-                ext = ''
-
-            mod_dt = None
-            mod_raw = f.get('modifiedDate', '')
-            if mod_raw:
-                try:
-                    mod_dt = datetime.fromisoformat(mod_raw.replace('Z', '+00:00'))
-                except ValueError:
-                    pass
-
-            objs.append(DriveFile(
-                drive_id      = f.get('id', ''),
-                name          = name,
-                mime_type     = f.get('mimeType', ''),
-                extension     = ext,
-                modified_date = mod_dt,
-                url           = f.get('url', ''),
-                path          = f.get('path', ''),
-                size          = f.get('size', 0) or 0,
-            ))
-
-        DriveFile.objects.bulk_create(objs, ignore_conflicts=True)
-
-        sync_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        _set_meta('last_sync_time', sync_time)
-
-        return Response({'success': True, 'count': len(objs), 'last_sync': sync_time})
+        return Response(res)
 
 
 # ---------------------------------------------------------------------------

@@ -49,6 +49,8 @@ class SyncRequestSerializer(serializers.Serializer):
     """Validates the POST body for POST /api/sync/."""
     script_url = serializers.URLField()
     folder_url = serializers.CharField(min_length=1)
+    start_date = serializers.DateField(required=False, allow_null=True, default=None)
+    end_date   = serializers.DateField(required=False, allow_null=True, default=None)
 
     def validate_folder_url(self, value):
         """Accepts either a raw folder ID or a full Drive URL."""
