@@ -55,7 +55,6 @@ function initUI() {
       panels.forEach(p => p.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
       if (tabId === 'tab-search') pageTitle.textContent = 'Search Indexed Files';
-      if (tabId === 'tab-sql')    pageTitle.textContent = 'SQL Console (Django SQLite)';
       if (tabId === 'tab-sync')   pageTitle.textContent = 'Setup & Google Drive Sync';
     });
   });
@@ -98,9 +97,6 @@ function initUI() {
   });
 
   // Action buttons
-  document.getElementById('btn-run-sql').addEventListener('click', runRawSql);
-  document.getElementById('btn-load-demo').addEventListener('click', loadDemoDataset);
-  document.getElementById('btn-clear-db').addEventListener('click', resetDatabase);
   document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
   document.getElementById('btn-sync-now').addEventListener('click', syncGoogleDrive);
   document.getElementById('clear-logs').addEventListener('click', () => {
@@ -123,13 +119,6 @@ function initUI() {
     });
   });
 
-  // SQL template queries
-  document.querySelectorAll('.suggestion-item').forEach(item => {
-    item.addEventListener('click', () => {
-      document.getElementById('sql-editor').value = item.getAttribute('data-query');
-      runRawSql();
-    });
-  });
 
   // Modal
   const modal = document.getElementById('details-modal');
@@ -236,127 +225,6 @@ async function syncGoogleDrive() {
   } finally {
     syncBtn.disabled = false;
     syncBtn.innerHTML = origHtml;
-  }
-}
-
-// -------------------------------------------------------------------------
-// Demo Data — POST /api/demo/
-// -------------------------------------------------------------------------
-async function loadDemoDataset() {
-  if (!confirm('This will replace all current data with a demo dataset of ~54 mock files/folders. Proceed?')) return;
-
-  const btn     = document.getElementById('btn-load-demo');
-  const origHtml = btn.innerHTML;
-  try {
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
-    logToSyncConsole('Loading pre-fabricated mock dataset...');
-
-    const result = await postJSON('/api/demo/');
-    if (!result.success) throw new Error('Demo load failed');
-
-    logToSyncConsole(`Loaded ${result.count} demo records into Django database.`, 'success');
-    await refreshStats();
-    await refreshSearchResults();
-    alert(`Demo dataset of ${result.count} files loaded successfully!`);
-  } catch (err) {
-    console.error(err);
-    alert('Error loading demo data: ' + err.message);
-  } finally {
-    btn.disabled  = false;
-    btn.innerHTML = origHtml;
-  }
-}
-
-// -------------------------------------------------------------------------
-// Reset DB — POST /api/reset/
-// -------------------------------------------------------------------------
-async function resetDatabase() {
-  if (!confirm('Are you sure you want to clear all indexed data from the Django database?')) return;
-  try {
-    const result = await postJSON('/api/reset/');
-    if (!result.success) throw new Error('Reset failed');
-    logToSyncConsole('Database has been fully reset.', 'warn');
-    await refreshStats();
-    await refreshSearchResults();
-    alert('Database reset complete!');
-  } catch (err) {
-    console.error(err);
-    alert('Error resetting database: ' + err.message);
-  }
-}
-
-// -------------------------------------------------------------------------
-// Raw SQL Console — POST /api/sql/
-// -------------------------------------------------------------------------
-async function runRawSql() {
-  const sql      = document.getElementById('sql-editor').value.trim();
-  const errorBox = document.getElementById('sql-error');
-  const head     = document.getElementById('sql-results-head');
-  const tbody    = document.getElementById('sql-results-body');
-
-  errorBox.style.display = 'none';
-  errorBox.textContent   = '';
-
-  if (!sql) {
-    tbody.innerHTML = '<tr><td>Write a query and click Execute.</td></tr>';
-    return;
-  }
-
-  try {
-    const result = await postJSON('/api/sql/', { sql });
-
-    if (!result.success) {
-      errorBox.textContent   = result.error;
-      errorBox.style.display = 'block';
-      return;
-    }
-
-    const { columns, rows } = result;
-
-    // Render header
-    head.innerHTML = '';
-    const trHead = document.createElement('tr');
-    (columns || []).forEach(col => {
-      const th = document.createElement('th');
-      th.textContent = col;
-      trHead.appendChild(th);
-    });
-    head.appendChild(trHead);
-
-    // Render rows
-    tbody.innerHTML = '';
-    if (!rows || rows.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td>
-            <div class="text-success" style="display:flex;align-items:center;gap:8px;font-weight:500;">
-              <i class="fa-solid fa-circle-check"></i>
-              Query executed successfully. No rows returned.
-            </div>
-          </td>
-        </tr>`;
-      return;
-    }
-
-    rows.forEach(row => {
-      const tr = document.createElement('tr');
-      row.forEach(val => {
-        const td = document.createElement('td');
-        if (val === null || val === 'None') {
-          td.innerHTML = '<span style="color:var(--text-muted);font-style:italic;">NULL</span>';
-        } else {
-          td.textContent = val;
-        }
-        td.style.fontFamily = 'var(--font-mono)';
-        td.style.fontSize   = '0.85rem';
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-  } catch (err) {
-    errorBox.textContent   = err.message;
-    errorBox.style.display = 'block';
   }
 }
 

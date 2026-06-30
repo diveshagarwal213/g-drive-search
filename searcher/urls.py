@@ -6,9 +6,6 @@ urlpatterns = [
     path('api/stats/',           views.api_stats,         name='api_stats'),
     path('api/search/',          views.api_search,        name='api_search'),
     path('api/sync/',            views.api_sync,          name='api_sync'),
-    path('api/demo/',            views.api_demo,          name='api_demo'),
-    path('api/reset/',           views.api_reset,         name='api_reset'),
-    path('api/sql/',             views.api_sql,           name='api_sql'),
     path('api/settings/save/',   views.api_settings_save, name='api_settings_save'),
     path('api/settings/load/',   views.api_settings_load, name='api_settings_load'),
 ]

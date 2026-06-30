@@ -35,10 +35,6 @@
             <i class="fa-solid fa-magnifying-glass"></i>
             <span>Search Files</span>
           </li>
-          <li class="nav-item" data-tab="tab-sql">
-            <i class="fa-solid fa-terminal"></i>
-            <span>SQL Console</span>
-          </li>
           <li class="nav-item" data-tab="tab-sync">
             <i class="fa-solid fa-arrows-rotate"></i>
             <span>Setup &amp; Sync</span>
@@ -74,16 +70,6 @@
       <!-- Top Bar -->
       <header class="top-bar">
         <h1 class="top-bar-title" id="page-title">Search Indexed Files</h1>
-        <div class="quick-actions">
-          <button id="btn-load-demo" class="btn btn-secondary">
-            <i class="fa-solid fa-database"></i>
-            <span>Load Demo Data</span>
-          </button>
-          <button id="btn-clear-db" class="btn btn-danger">
-            <i class="fa-solid fa-trash-can"></i>
-            <span>Reset DB</span>
-          </button>
-        </div>
       </header>
       
       <!-- Tab 1: Search Files -->
@@ -176,71 +162,8 @@
         </div>
       </section>
       
-      <!-- Tab 2: SQL Console -->
-      <section id="tab-sql" class="tab-panel">
-        <div class="sql-layout">
-          <!-- Sidebar: Sample Queries -->
-          <div class="sql-sidebar">
-            <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 8px;">Template Queries</h3>
-            <div class="query-suggestions-list">
-              <div class="suggestion-item" data-query="SELECT drive_id, name, extension, path, size FROM searcher_drivefile LIMIT 50;">
-                <div class="suggestion-title">Select All Files</div>
-                <div class="suggestion-code">SELECT ... FROM searcher_drivefile LIMIT 50;</div>
-              </div>
-              <div class="suggestion-item" data-query="SELECT drive_id, name, path FROM searcher_drivefile WHERE name LIKE '%23456789%';">
-                <div class="suggestion-title">Substring Match (LIKE)</div>
-                <div class="suggestion-code">SELECT ... WHERE name LIKE '%23456789%';</div>
-              </div>
-              <div class="suggestion-item" data-query="SELECT extension, COUNT(*) as count, SUM(size)/1024/1024 as size_mb FROM searcher_drivefile GROUP BY extension ORDER BY count DESC;">
-                <div class="suggestion-title">File Types Summary</div>
-                <div class="suggestion-code">Group and aggregate by type</div>
-              </div>
-              <div class="suggestion-item" data-query="SELECT drive_id, name, size FROM searcher_drivefile ORDER BY size DESC LIMIT 10;">
-                <div class="suggestion-title">Top 10 Largest Files</div>
-                <div class="suggestion-code">SELECT ... ORDER BY size DESC LIMIT 10;</div>
-              </div>
-              <div class="suggestion-item" data-query="SELECT drive_id, name, modified_date FROM searcher_drivefile WHERE modified_date >= date('now', '-30 days') ORDER BY modified_date DESC;">
-                <div class="suggestion-title">Modified in last 30 Days</div>
-                <div class="suggestion-code">Filter by date functions</div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Workspace: SQL Editor & Result table -->
-          <div class="sql-workspace">
-            <div class="card query-editor-card">
-              <div class="query-actions-row">
-                <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Write SQL Query (SELECT only):</span>
-                <button id="btn-run-sql" class="btn btn-primary">
-                  <i class="fa-solid fa-play"></i>
-                  <span>Execute Query</span>
-                </button>
-              </div>
-              <div class="sql-textarea-wrapper">
-                <textarea id="sql-editor" class="sql-textarea" spellcheck="false">SELECT drive_id, name, path FROM searcher_drivefile WHERE name LIKE '%23456789%';</textarea>
-              </div>
-              <div id="sql-error" class="sql-error-box"></div>
-            </div>
-            
-            <!-- Query Results -->
-            <div class="results-section" style="flex-grow: 1;">
-              <table class="results-table" id="sql-results-table">
-                <thead id="sql-results-head">
-                  <tr>
-                    <th>Result Set</th>
-                  </tr>
-                </thead>
-                <tbody id="sql-results-body">
-                  <tr>
-                    <td>Write a query and click Execute to see results here.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
-      
+
+
       <!-- Tab 3: Setup & Sync -->
       <section id="tab-sync" class="tab-panel">
         <div class="sync-grid">
