@@ -1,6 +1,3 @@
-import re
-from datetime import datetime, timezone
-
 from rest_framework import serializers
 
 from .models import DriveFile
@@ -44,20 +41,3 @@ class SearchQuerySerializer(serializers.Serializer):
     start_date   = serializers.DateField(required=False, allow_null=True)
     end_date     = serializers.DateField(required=False, allow_null=True)
 
-
-class SyncRequestSerializer(serializers.Serializer):
-    """Validates the POST body for POST /api/sync/."""
-    script_url = serializers.URLField()
-    folder_url = serializers.CharField(min_length=1)
-    start_date = serializers.DateField(required=False, allow_null=True, default=None)
-    end_date   = serializers.DateField(required=False, allow_null=True, default=None)
-
-    def validate_folder_url(self, value):
-        """Accepts either a raw folder ID or a full Drive URL."""
-        return value.strip()
-
-
-class SettingsSerializer(serializers.Serializer):
-    """Validates the POST body for POST /api/settings/."""
-    script_url = serializers.CharField(allow_blank=True, default='')
-    folder_url = serializers.CharField(allow_blank=True, default='')

@@ -33,7 +33,6 @@ let currentActiveTypeFilter = 'all';
 // -------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', async () => {
   initUI();
-  await loadSavedSettings();
   await refreshStats();
   await refreshSearchResults();
 });
@@ -55,7 +54,6 @@ function initUI() {
       panels.forEach(p => p.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
       if (tabId === 'tab-search') pageTitle.textContent = 'Search Indexed Files';
-      if (tabId === 'tab-sync')   pageTitle.textContent = 'Setup & Google Drive Sync';
     });
   });
 
@@ -96,28 +94,6 @@ function initUI() {
     });
   });
 
-  // Action buttons
-  document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
-  document.getElementById('btn-sync-now').addEventListener('click', syncGoogleDrive);
-  document.getElementById('clear-logs').addEventListener('click', () => {
-    document.getElementById('sync-logs-body').innerHTML = '<div class="log-item info">Console cleared.</div>';
-  });
-
-  // Copy script button
-  document.getElementById('btn-copy-script').addEventListener('click', () => {
-    const code = document.getElementById('script-code-block').innerText;
-    navigator.clipboard.writeText(code).then(() => {
-      const btn = document.getElementById('btn-copy-script');
-      btn.innerText = 'Copied!';
-      btn.style.backgroundColor = 'var(--success)';
-      btn.style.color = '#fff';
-      setTimeout(() => {
-        btn.innerText = 'Copy Code';
-        btn.style.backgroundColor = 'rgba(255,255,255,0.05)';
-        btn.style.color = 'var(--text-secondary)';
-      }, 2000);
-    });
-  });
 
 
   // Modal
@@ -171,86 +147,6 @@ async function refreshSearchResults() {
     renderResults(data.files || []);
   } catch (err) {
     console.error('Search error:', err);
-  }
-}
-
-// -------------------------------------------------------------------------
-// Sync — POST /api/sync/
-// -------------------------------------------------------------------------
-async function syncGoogleDrive() {
-  const scriptUrl   = document.getElementById('sync-script-url').value.trim();
-  const folderInput = document.getElementById('sync-folder-url').value.trim();
-
-  if (!scriptUrl) {
-    alert('Please provide a Google Apps Script Web App URL first.');
-    document.querySelector('[data-tab="tab-sync"]').click();
-    document.getElementById('sync-script-url').focus();
-    return;
-  }
-  if (!folderInput) {
-    alert('Please enter a valid Google Drive Folder URL or Folder ID.');
-    return;
-  }
-
-  const syncBtn    = document.getElementById('btn-sync-now');
-  const origHtml   = syncBtn.innerHTML;
-
-  try {
-    syncBtn.disabled = true;
-    syncBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing...';
-    updateStatus('loading', 'Syncing Drive...');
-
-    logToSyncConsole(`Sending sync request to Django backend...`);
-    logToSyncConsole(`Apps Script URL: ${scriptUrl.substring(0, 45)}...`);
-
-    const result = await postJSON('/api/sync/', {
-      script_url: scriptUrl,
-      folder_url: folderInput,
-    });
-
-    if (!result.success) {
-      throw new Error(result.error || 'Unknown sync error');
-    }
-
-    logToSyncConsole(`Sync complete! ${result.count} records saved to Django database.`, 'success');
-    updateStatus('online', 'Django DB Ready');
-    await refreshStats();
-    await refreshSearchResults();
-    alert(`Sync completed! ${result.count} items indexed in Django SQLite.`);
-  } catch (err) {
-    console.error(err);
-    logToSyncConsole(`Sync failed: ${err.message}`, 'error');
-    updateStatus('online', 'Django DB Ready');
-    alert(`Sync failed: ${err.message}`);
-  } finally {
-    syncBtn.disabled = false;
-    syncBtn.innerHTML = origHtml;
-  }
-}
-
-// -------------------------------------------------------------------------
-// Settings — Save & Load
-// -------------------------------------------------------------------------
-async function saveSettings() {
-  const scriptUrl = document.getElementById('sync-script-url').value.trim();
-  const folderUrl = document.getElementById('sync-folder-url').value.trim();
-
-  try {
-    await postJSON('/api/settings/save/', { script_url: scriptUrl, folder_url: folderUrl });
-    logToSyncConsole('Settings saved to Django database.', 'success');
-    alert('Settings saved!');
-  } catch (err) {
-    alert('Error saving settings: ' + err.message);
-  }
-}
-
-async function loadSavedSettings() {
-  try {
-    const data = await fetch('/api/settings/load/').then(r => r.json());
-    document.getElementById('sync-script-url').value = data.script_url || '';
-    document.getElementById('sync-folder-url').value = data.folder_url || '';
-  } catch (err) {
-    console.error('Could not load settings:', err);
   }
 }
 
@@ -379,18 +275,6 @@ function updateStatus(state, text) {
   label.textContent = text;
 }
 
-// -------------------------------------------------------------------------
-// Sync Console Logger
-// -------------------------------------------------------------------------
-function logToSyncConsole(message, type = 'info') {
-  const consoleEl = document.getElementById('sync-logs-body');
-  const timestamp = new Date().toLocaleTimeString();
-  const div       = document.createElement('div');
-  div.className   = `log-item ${type}`;
-  div.innerHTML   = `<span style="color:var(--text-muted)">[${timestamp}]</span> ${message}`;
-  consoleEl.appendChild(div);
-  consoleEl.scrollTop = consoleEl.scrollHeight;
-}
 
 // -------------------------------------------------------------------------
 // Pure display utilities (unchanged from original)

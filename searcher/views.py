@@ -1,6 +1,4 @@
 import os
-import re
-import requests as http_requests
 from datetime import datetime, timezone
 
 from django.conf import settings
@@ -14,10 +12,7 @@ from .models import DriveFile, SyncMeta
 from .serializers import (
     DriveFileSerializer,
     SearchQuerySerializer,
-    SettingsSerializer,
-    SyncRequestSerializer,
 )
-from .service import perform_gdrive_sync
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -29,26 +24,12 @@ def _get_meta(key, default=''):
     except SyncMeta.DoesNotExist:
         return default
 
-
-def _set_meta(key, value):
-    obj, _ = SyncMeta.objects.get_or_create(key=key)
-    obj.value = value
-    obj.save()
-
-
 def _db_size_kb():
     db_path = settings.DATABASES['default']['NAME']
     try:
         return round(os.path.getsize(db_path) / 1024, 1)
     except (OSError, TypeError):
         return 0
-
-
-def _extract_folder_id(raw: str) -> str:
-    """Return the Drive folder ID from a URL or pass through a bare ID."""
-    raw = raw.strip()
-    match = re.search(r'/folders/([a-zA-Z0-9_-]{25,})', raw)
-    return match.group(1) if match else raw
 
 
 # ---------------------------------------------------------------------------
@@ -159,62 +140,3 @@ class SearchView(APIView):
         files = DriveFileSerializer(qs[:2000], many=True).data
         return Response({'files': files, 'total': len(files)})
 
-
-# ---------------------------------------------------------------------------
-# POST /api/sync/
-# ---------------------------------------------------------------------------
-
-class SyncView(APIView):
-    """
-    Fetches file metadata from a Google Apps Script proxy and stores it
-    in the Django database, replacing all previous records.
-
-    POST /api/sync/
-    Body: { script_url, folder_url }
-    Response: { success, count, last_sync }
-    """
-
-    def post(self, request):
-        body = SyncRequestSerializer(data=request.data)
-        if not body.is_valid():
-            return Response(body.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        script_url = body.validated_data['script_url']
-        folder_url = body.validated_data['folder_url']
-
-        res = perform_gdrive_sync(script_url, folder_url)
-        if not res.get('success'):
-            return Response(res, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(res)
-
-
-# ---------------------------------------------------------------------------
-# GET + POST /api/settings/
-# ---------------------------------------------------------------------------
-
-class SettingsView(APIView):
-    """
-    Retrieve or persist the Apps Script URL and Drive folder URL.
-
-    GET  /api/settings/  → { script_url, folder_url }
-    POST /api/settings/  ← { script_url, folder_url }
-                         → { success: true }
-    """
-
-    DEFAULT_FOLDER = 'https://drive.google.com/drive/folders/1Cc0BLV_SdNnmM6esqsPu4ZuapGD3nCSq'
-
-    def get(self, request):
-        return Response({
-            'script_url': _get_meta('script_url', ''),
-            'folder_url': _get_meta('folder_url', self.DEFAULT_FOLDER),
-        })
-
-    def post(self, request):
-        body = SettingsSerializer(data=request.data)
-        if not body.is_valid():
-            return Response(body.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        _set_meta('script_url', body.validated_data['script_url'])
-        _set_meta('folder_url', body.validated_data['folder_url'])
-        return Response({'success': True})

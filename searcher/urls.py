@@ -9,6 +9,4 @@ urlpatterns = [
     # REST API endpoints
     path('api/stats/',    views.StatsView.as_view(),    name='api_stats'),
     path('api/search/',   views.SearchView.as_view(),   name='api_search'),
-    path('api/sync/',     views.SyncView.as_view(),     name='api_sync'),
-    path('api/settings/', views.SettingsView.as_view(), name='api_settings'),
 ]
