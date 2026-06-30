@@ -33,6 +33,17 @@ let currentActiveTypeFilter = 'all';
 // -------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', async () => {
   initUI();
+
+  // Handle default search parameter from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const defaultSearch = urlParams.get('search');
+  if (defaultSearch) {
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+      searchInput.value = defaultSearch;
+    }
+  }
+
   await refreshStats();
   await refreshSearchResults();
 });
