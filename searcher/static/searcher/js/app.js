@@ -121,7 +121,6 @@ async function refreshStats() {
   try {
     const data = await fetch('/api/stats/').then(r => r.json());
     document.getElementById('stat-count').textContent = (data.count || 0).toLocaleString();
-    document.getElementById('stat-size').textContent  = `${data.db_size_kb || 0} KB`;
     document.getElementById('stat-sync').textContent  = data.last_sync || 'Never';
     updateStatus('online', 'Django DB Ready');
   } catch (err) {

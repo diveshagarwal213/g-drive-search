@@ -1,7 +1,5 @@
-import os
 from datetime import datetime, timezone
 
-from django.conf import settings
 from django.shortcuts import render
 
 from rest_framework import status
@@ -24,13 +22,6 @@ def _get_meta(key, default=''):
     except SyncMeta.DoesNotExist:
         return default
 
-def _db_size_kb():
-    db_path = settings.DATABASES['default']['NAME']
-    try:
-        return round(os.path.getsize(db_path) / 1024, 1)
-    except (OSError, TypeError):
-        return 0
-
 
 # ---------------------------------------------------------------------------
 # Template view  (plain Django — DRF APIView cannot render HTML templates)
@@ -50,13 +41,12 @@ class StatsView(APIView):
     Returns aggregate statistics about the indexed database.
 
     GET /api/stats/
-    Response: { count, db_size_kb, last_sync }
+    Response: { count, last_sync }
     """
 
     def get(self, request):
         return Response({
             'count':      DriveFile.objects.count(),
-            'db_size_kb': _db_size_kb(),
             'last_sync':  _get_meta('last_sync_time', 'Never'),
         })
 
