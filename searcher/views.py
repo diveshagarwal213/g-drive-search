@@ -1,7 +1,5 @@
 from datetime import datetime, timezone
 
-from django.shortcuts import render
-
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,13 +21,6 @@ def _get_meta(key, default=''):
         return default
 
 
-# ---------------------------------------------------------------------------
-# Template view  (plain Django — DRF APIView cannot render HTML templates)
-# ---------------------------------------------------------------------------
-
-def index(request):
-    """Render the single-page application shell."""
-    return render(request, 'searcher/index.html')
 
 
 # ---------------------------------------------------------------------------
