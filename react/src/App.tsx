@@ -152,6 +152,7 @@ export default function App() {
   };
 
   return (
+    <div className="google-drive-scope">
     <div className="app-container">
       {/* Sidebar */}
       <aside className="sidebar">
@@ -485,6 +486,7 @@ export default function App() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
