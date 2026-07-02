@@ -60,68 +60,112 @@ Once running, navigate to **[http://localhost:8000](http://localhost:8000)** in 
 
 ## Google Apps Script Setup Guide
 
-To index and search your actual Google Drive folders, you will deploy a Google Apps Script that returns folder metadata as a JSON structure.
+To index and search your actual Google Drive folders, deploy the **paginated** Google Apps Script below.  
+It returns up to 500 files per request and provides a `nextPageToken` so the Django backend can keep fetching until all pages are collected — avoiding Apps Script's 6-minute execution timeout on large folders.
 
 ### Step 1: Create a Script
 - Open [script.google.com](https://script.google.com) and click **New Project**.
 - Delete any template code and paste the script below:
 
 ```javascript
+/**
+ * Paginated GDrive Indexer — v2
+ *
+ * Query params:
+ *   id        (required) Folder ID or full Drive folder URL
+ *   pageToken (optional) Continuation token returned by a previous call
+ *   pageSize  (optional, default 500) Max files to return per call
+ *
+ * Response:
+ *   { success: true, files: [...], nextPageToken: "<string|null>" }
+ */
 function doGet(e) {
-  var folderId = e.parameter.id;
+  var folderId = (e.parameter.id || '').trim();
+  // Accept full folder URLs
+  var match = folderId.match(/\/folders\/([a-zA-Z0-9_-]{25,})/);
+  if (match) folderId = match[1];
+
   if (!folderId) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: "Missing 'id' parameter specifying the Google Drive Folder ID."
-    })).setMimeType(ContentService.MimeType.JSON);
+    return json({ success: false, error: "Missing 'id' parameter." });
   }
-  
+
+  var pageSize = parseInt(e.parameter.pageSize, 10) || 500;
+
+  // Decode continuation state or bootstrap fresh
+  var state;
+  if (e.parameter.pageToken) {
+    try {
+      state = JSON.parse(Utilities.newBlob(Utilities.base64Decode(e.parameter.pageToken)).getDataAsString());
+    } catch (err) {
+      return json({ success: false, error: "Invalid pageToken: " + err });
+    }
+  } else {
+    // State: stack of { folderId, path } objects to visit (BFS)
+    state = { stack: [{ id: folderId, path: '' }] };
+  }
+
+  var filesList = [];
+
   try {
-    var folder = DriveApp.getFolderById(folderId);
-    var filesList = [];
-    
-    function getFiles(parentFolder, currentPath) {
-      // Fetch files
-      var files = parentFolder.getFiles();
-      while (files.hasNext()) {
+    while (state.stack.length > 0 && filesList.length < pageSize) {
+      var current = state.stack.shift();
+      var folder = DriveApp.getFolderById(current.id);
+
+      // --- Files in this folder ---
+      var files = folder.getFiles();
+      while (files.hasNext() && filesList.length < pageSize) {
         var file = files.next();
         var name = file.getName();
-        var dotIndex = name.lastIndexOf('.');
-        var ext = dotIndex !== -1 ? name.substring(dotIndex + 1).toLowerCase() : '';
         filesList.push({
-          id: file.getId(),
-          name: name,
-          mimeType: file.getMimeType(),
-          extension: ext,
+          id:           file.getId(),
+          name:         name,
+          mimeType:     file.getMimeType(),
           modifiedDate: file.getLastUpdated().toISOString(),
-          url: file.getUrl(),
-          path: currentPath ? currentPath + '/' + name : name,
-          size: file.getSize()
+          url:          file.getUrl(),
+          path:         current.path ? current.path + '/' + name : name,
+          size:         file.getSize()
         });
       }
-      
-      // Fetch subfolders recursively
-      var subfolders = parentFolder.getFolders();
+
+      // --- Queue subfolders ---
+      var subfolders = folder.getFolders();
       while (subfolders.hasNext()) {
-        var subfolder = subfolders.next();
-        var subfolderPath = currentPath ? currentPath + '/' + subfolder.getName() : subfolder.getName();
-        getFiles(subfolder, subfolderPath);
+        var sub = subfolders.next();
+        var subPath = current.path ? current.path + '/' + sub.getName() : sub.getName();
+        state.stack.push({ id: sub.getId(), path: subPath });
+
+        // Also record the folder itself as an entry
+        if (filesList.length < pageSize) {
+          filesList.push({
+            id:           sub.getId(),
+            name:         sub.getName(),
+            mimeType:     'application/vnd.google-apps.folder',
+            modifiedDate: sub.getLastUpdated().toISOString(),
+            url:          sub.getUrl(),
+            path:         subPath,
+            size:         0
+          });
+        }
       }
     }
-    
-    getFiles(folder, '');
-    
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      files: filesList
-    })).setMimeType(ContentService.MimeType.JSON);
-    
+
+    var nextPageToken = null;
+    if (state.stack.length > 0) {
+      // More folders remain — encode state as continuation token
+      nextPageToken = Utilities.base64Encode(JSON.stringify(state));
+    }
+
+    return json({ success: true, files: filesList, nextPageToken: nextPageToken });
+
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    return json({ success: false, error: error.toString() });
   }
+}
+
+function json(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 ```
 
@@ -129,17 +173,30 @@ function doGet(e) {
 1. Click **Deploy** > **New deployment** (top right).
 2. Click the gear icon next to "Select type" and choose **Web app**.
 3. Fill out the configuration:
-   - **Description**: G-Drive Indexer API
+   - **Description**: G-Drive Indexer API (Paginated)
    - **Execute as**: `Me (your-email@gmail.com)`
-   - **Who has access**: `Anyone` *(Note: This allows the client-side JavaScript request to contact the endpoint directly without authentication headers, bypassing preflight CORS blocks).*
+   - **Who has access**: `Anyone`
 4. Click **Deploy**. Authorize Google permissions if prompted.
 5. Copy the generated **Web App URL** (e.g. `https://script.google.com/macros/s/.../exec`).
 
-### Step 3: Synchronize folders
-1. In the web app interface, navigate to **Setup & Sync**.
-2. Paste the **Apps Script Web App URL** in the configuration panel.
-3. Enter your Google Drive Folder URL or Folder ID.
-4. Click **Fetch & Sync Now**. The Sync Process Console will output status updates. Once complete, you can search all nested files in the **Search Files** panel.
+### Step 3: Trigger a Sync via the API
+
+```bash
+curl -X POST http://localhost:8000/api/sync/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "script_url": "https://script.google.com/macros/s/.../exec",
+    "folder_url": "https://drive.google.com/drive/folders/<YOUR_FOLDER_ID>"
+  }'
+```
+
+**Success response:**
+```json
+{ "success": true, "count": 4821, "pages": 10, "last_sync": "2026-07-02 18:00:00" }
+```
+
+The backend fetches page by page (≤500 files each), accumulates everything, then does a single atomic DB upsert.  
+`pages` in the response tells you how many round-trips were made.
 
 ---
 

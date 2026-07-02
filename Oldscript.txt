@@ -1,0 +1,56 @@
+function doGet(e) {
+  var folderId = e.parameter.id;
+  if (!folderId) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: "Missing 'id' parameter specifying the Google Drive Folder ID."
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  try {
+    var folder = DriveApp.getFolderById(folderId);
+    var filesList = [];
+    
+    function getFiles(parentFolder, currentPath) {
+      // Fetch files
+      var files = parentFolder.getFiles();
+      while (files.hasNext()) {
+        var file = files.next();
+        var name = file.getName();
+        var dotIndex = name.lastIndexOf('.');
+        var ext = dotIndex !== -1 ? name.substring(dotIndex + 1).toLowerCase() : '';
+        filesList.push({
+          id: file.getId(),
+          name: name,
+          mimeType: file.getMimeType(),
+          extension: ext,
+          modifiedDate: file.getLastUpdated().toISOString(),
+          url: file.getUrl(),
+          path: currentPath ? currentPath + '/' + name : name,
+          size: file.getSize()
+        });
+      }
+      
+      // Fetch subfolders recursively
+      var subfolders = parentFolder.getFolders();
+      while (subfolders.hasNext()) {
+        var subfolder = subfolders.next();
+        var subfolderPath = currentPath ? currentPath + '/' + subfolder.getName() : subfolder.getName();
+        getFiles(subfolder, subfolderPath);
+      }
+    }
+    
+    getFiles(folder, '');
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      files: filesList
+    })).setMimeType(ContentService.MimeType.JSON);
+    
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}

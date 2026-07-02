@@ -48,3 +48,34 @@ class SyncMeta(models.Model):
 
     def __str__(self):
         return f'{self.key} = {self.value[:60]}'
+
+
+class FolderSyncState(models.Model):
+    """
+    Tracks the sync status of every Google Drive folder discovered during sync.
+    Enables folder-by-folder processing with resume / retry on failure.
+    """
+    PENDING = 'pending'
+    DONE    = 'done'
+    FAILED  = 'failed'
+    STATUS_CHOICES = [
+        (PENDING, 'Pending'),
+        (DONE,    'Done'),
+        (FAILED,  'Failed'),
+    ]
+
+    folder_id  = models.CharField(max_length=255, unique=True, db_index=True)
+    name       = models.CharField(max_length=500, blank=True)
+    path       = models.TextField(blank=True)        # path of the folder itself
+    status     = models.CharField(max_length=20, choices=STATUS_CHOICES,
+                                  default=PENDING, db_index=True)
+    error_msg  = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.path or 'root'} [{self.status}]"
+
